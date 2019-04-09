@@ -28,7 +28,7 @@ const defaults = {
 		typingIndicator: false,
 		deliveryReceipt: false
 	},
-	emojiStyle: 'facebook-3-0' as EmojiStyle,
+	emojiStyle: 'messenger-1-0' as EmojiStyle,
 	confirmImagePaste: true,
 	useWorkChat: false,
 	sidebarHidden: false,
