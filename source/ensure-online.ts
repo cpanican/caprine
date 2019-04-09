@@ -5,7 +5,7 @@ import pWaitFor from 'p-wait-for';
 function showWaitDialog(): void {
 	dialog.showMessageBox(
 		{
-			message: 'You appear to be offline. Caprine requires a working internet connection.',
+			message: 'You appear to be offline. Messenger requires a working internet connection.',
 			detail: 'Do you want to wait?',
 			buttons: ['Wait', 'Quit'],
 			defaultId: 0,

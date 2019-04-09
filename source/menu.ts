@@ -118,12 +118,12 @@ export default async function updateMenu(): Promise<Menu> {
 				const filePath = path.join(app.getPath('userData'), 'custom.css');
 				const defaultCustomStyle = `/*
 This is the custom styles file where you can add anything you want.
-The styles here will be injected into Caprine and will override default styles.
+The styles here will be injected into Messenger and will override default styles.
 If you want to disable styles but keep the config, just comment the lines that you don't want to be used.
 
 Here are some dark mode color variables to get you started.
-Edit them to change color scheme of Caprine.
-Press Command/Ctrl+R in Caprine to see your changes.
+Edit them to change color scheme of Messenger.
+Press Command/Ctrl+R in Messenger to see your changes.
 */
 
 :root {
@@ -196,7 +196,7 @@ Press Command/Ctrl+R in Caprine to see your changes.
 			checked: config.get('hardwareAcceleration'),
 			click() {
 				config.set('hardwareAcceleration', !config.get('hardwareAcceleration'));
-				showRestartDialog('Caprine needs to be restarted to change hardware acceleration.');
+				showRestartDialog('Messenger needs to be restarted to change hardware acceleration.');
 			}
 		},
 		{
@@ -534,7 +534,7 @@ ${debugInfo()}`;
 	const macosTemplate: MenuItemConstructorOptions[] = [
 		appMenu([
 			{
-				label: 'Caprine Preferences',
+				label: 'Messenger Preferences',
 				submenu: preferencesSubmenu
 			},
 			{
@@ -590,7 +590,7 @@ ${debugInfo()}`;
 					type: 'separator'
 				},
 				{
-					label: 'Caprine Settings',
+					label: 'Messenger Settings',
 					submenu: preferencesSubmenu
 				},
 				{

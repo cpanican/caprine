@@ -1,6 +1,8 @@
 # Caprine <img src="static/Icon.png" width="60">
 
-> Elegant Facebook Messenger desktop app
+> Elegant Facebook Messenger desktop app.
+
+This forked repo has modified changes to the original app.
 
 Caprine is an unofficial and privacy-focused Facebook Messenger app with many useful features.
 

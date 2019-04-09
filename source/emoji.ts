@@ -368,7 +368,7 @@ export async function generateSubmenu(
 			config.set('emojiStyle', style);
 
 			await updateMenu();
-			showRestartDialog('Caprine needs to be restarted to apply emoji changes.');
+			showRestartDialog('Messenger needs to be restarted to apply emoji changes.');
 		}
 	});
 
