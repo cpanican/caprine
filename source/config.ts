@@ -18,7 +18,7 @@ const defaults = {
 		y: undefined as number | undefined
 	},
 	alwaysOnTop: false,
-	bounceDockOnMessage: false,
+	bounceDockOnMessage: true,
 	showUnreadBadge: true,
 	showMessageButtons: true,
 	launchMinimized: false,
@@ -34,7 +34,7 @@ const defaults = {
 	sidebarHidden: false,
 	autoHideMenuBar: false,
 	notificationsMuted: false,
-	hardwareAcceleration: true,
+	hardwareAcceleration: false,
 	quitOnWindowClose: false,
 	keepMeSignedIn: true
 };
