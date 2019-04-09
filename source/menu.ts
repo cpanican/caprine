@@ -534,11 +534,11 @@ ${debugInfo()}`;
 	const macosTemplate: MenuItemConstructorOptions[] = [
 		appMenu([
 			{
-				label: 'Messenger Preferences',
+				label: 'Preferences',
 				submenu: preferencesSubmenu
 			},
 			{
-				label: 'Messenger Preferences…',
+				label: 'Facebook Settings…',
 				accelerator: 'Command+,',
 				click() {
 					sendAction('show-preferences');
