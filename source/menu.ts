@@ -232,6 +232,19 @@ Press Command/Ctrl+R in Messenger to see your changes.
 			}
 		},
 		{
+			label: 'Show Menu Bar Icon',
+			id: 'menuBarMode',
+			type: 'checkbox',
+			visible: is.macos,
+			checked: config.get('menuBarMode'),
+			click() {
+				config.set('menuBarMode', !config.get('menuBarMode'));
+
+				const [win] = BrowserWindow.getAllWindows();
+				toggleMenuBarMode(win);
+			}
+		},
+		{
 			label: 'Always on Top',
 			type: 'checkbox',
 			accelerator: 'CommandOrControl+Shift+T',
