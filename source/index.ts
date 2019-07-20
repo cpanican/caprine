@@ -19,10 +19,10 @@ import {
 import log from 'electron-log';
 import {autoUpdater} from 'electron-updater';
 import electronDl from 'electron-dl';
-import electronContextMenu from 'electron-context-menu';
-import isDev from 'electron-is-dev';
-import electronDebug from 'electron-debug';
-import {darkMode, is} from 'electron-util';
+import electronContextMenu = require('electron-context-menu');
+import electronLocalshortcut = require('electron-localshortcut');
+import electronDebug = require('electron-debug');
+import {is, darkMode} from 'electron-util';
 import {bestFacebookLocaleFor} from 'facebook-locales';
 import updateAppMenu from './menu';
 import config from './config';
@@ -31,11 +31,12 @@ import {sendAction, sendBackgroundAction} from './util';
 import {process as processEmojiUrl} from './emoji';
 import ensureOnline from './ensure-online';
 import './touch-bar'; // eslint-disable-line import/no-unassigned-import
+import {setUpMenuBarMode} from './menu-bar-mode';
 
 ipcMain.setMaxListeners(100);
 
 electronDebug({
-	enabled: true, // TODO: This is only enabled to allow `Command+R` because messenger sometimes gets stuck after computer waking up
+	isEnabled: true, // TODO: This is only enabled to allow `Command+R` because messenger sometimes gets stuck after computer waking up
 	showDevTools: false
 });
 
@@ -46,25 +47,22 @@ const domain = config.get('useWorkChat') ? 'facebook.com' : 'messenger.com';
 
 app.setAppUserModelId('com.sindresorhus.caprine');
 
-// Disables broken color space correction in Chromium.
-// You can see differing background color on the login screen.
-// https://github.com/electron/electron/issues/9671
-app.commandLine.appendSwitch('disable-color-correct-rendering');
-
 if (!config.get('hardwareAcceleration')) {
 	app.disableHardwareAcceleration();
 }
 
-if (!isDev) {
-	log.transports.file.level = 'info';
-	autoUpdater.logger = log;
+if (!is.development && !is.linux) {
+	(async () => {
+		log.transports.file.level = 'info';
+		autoUpdater.logger = log;
 
-	const FOUR_HOURS = 1000 * 60 * 60 * 4;
-	setInterval(() => {
-		autoUpdater.checkForUpdates();
-	}, FOUR_HOURS);
+		const FOUR_HOURS = 1000 * 60 * 60 * 4;
+		setInterval(async () => {
+			await autoUpdater.checkForUpdates();
+		}, FOUR_HOURS);
 
-	autoUpdater.checkForUpdates();
+		await autoUpdater.checkForUpdates();
+	})();
 }
 
 let mainWindow: BrowserWindow;
@@ -86,13 +84,17 @@ app.on('second-instance', () => {
 	}
 });
 
+function getMessageCount(conversations: Conversation[]): number {
+	return conversations.filter(({unread}) => unread).length;
+}
+
 function updateBadge(conversations: Conversation[]): void {
 	// Ignore `Sindre messaged you` blinking
 	if (!Array.isArray(conversations)) {
 		return;
 	}
 
-	const messageCount = conversations.filter(({unread}) => unread).length;
+	const messageCount = getMessageCount(conversations);
 
 	if (is.macos || is.linux) {
 		if (config.get('showUnreadBadge')) {
@@ -115,6 +117,8 @@ function updateBadge(conversations: Conversation[]): void {
 		}
 	}
 
+	tray.update(messageCount);
+
 	if (is.windows) {
 		if (config.get('showUnreadBadge')) {
 			if (messageCount === 0) {
@@ -131,6 +135,16 @@ ipcMain.on('update-overlay-icon', (_event: ElectronEvent, data: string, text: st
 	const img = nativeImage.createFromDataURL(data);
 	mainWindow.setOverlayIcon(img, text);
 });
+
+function updateTrayIcon(): void {
+	if (!config.get('showTrayIcon') || config.get('quitOnWindowClose')) {
+		tray.destroy();
+	} else {
+		tray.create(mainWindow);
+	}
+}
+
+ipcMain.on('update-tray-icon', updateTrayIcon);
 
 interface BeforeSendHeadersResponse {
 	cancel?: boolean;
@@ -203,7 +217,8 @@ function setUserLocale(): void {
 		name: 'locale',
 		value: userLocale
 	};
-	session.defaultSession!.cookies.set(cookie, () => {});
+
+	session.defaultSession!.cookies.set(cookie);
 }
 
 function setNotificationsMute(status: boolean): void {
@@ -244,7 +259,6 @@ function createMainWindow(): BrowserWindow {
 		darkTheme: isDarkMode, // GTK+3
 		webPreferences: {
 			preload: path.join(__dirname, 'browser.js'),
-			nodeIntegration: false,
 			contextIsolation: true,
 			plugins: true
 		}
@@ -295,7 +309,14 @@ function createMainWindow(): BrowserWindow {
 
 	await updateAppMenu();
 	mainWindow = createMainWindow();
-	tray.create(mainWindow);
+
+	// Workaround for https://github.com/electron/electron/issues/5256
+	electronLocalshortcut.register(mainWindow, 'CommandOrControl+=', () => {
+		sendAction('zoom-in');
+	});
+
+	// Start in menu bar mode if enabled, otherwise start normally
+	setUpMenuBarMode(mainWindow);
 
 	if (is.macos) {
 		const firstItem: MenuItemConstructorOptions = {
@@ -309,6 +330,11 @@ function createMainWindow(): BrowserWindow {
 
 		dockMenu = Menu.buildFromTemplate([firstItem]);
 		app.dock.setMenu(dockMenu);
+
+		// Dock icon is hidden initially on macOS
+		if (config.get('showDockIcon')) {
+			app.dock.show();
+		}
 
 		ipcMain.on('conversations', (_event: ElectronEvent, conversations: Conversation[]) => {
 			if (conversations.length === 0) {
@@ -347,6 +373,7 @@ function createMainWindow(): BrowserWindow {
 		webContents.insertCSS(
 			readFileSync(path.join(__dirname, '..', 'css', 'code-blocks.css'), 'utf8')
 		);
+		webContents.insertCSS(readFileSync(path.join(__dirname, '..', 'css', 'autoplay.css'), 'utf8'));
 
 		if (config.get('useWorkChat')) {
 			webContents.insertCSS(
@@ -367,7 +394,7 @@ function createMainWindow(): BrowserWindow {
 		webContents.send('toggle-mute-notifications', config.get('notificationsMuted'));
 		webContents.send('toggle-message-buttons', config.get('showMessageButtons'));
 
-		webContents.executeJavaScript(
+		await webContents.executeJavaScript(
 			readFileSync(path.join(__dirname, 'notifications-isolated.js'), 'utf8')
 		);
 	});
@@ -389,7 +416,7 @@ function createMainWindow(): BrowserWindow {
 				url = new URL(url).searchParams.get('u')!;
 			}
 
-			shell.openExternal(url);
+			shell.openExternalSync(url);
 		}
 	});
 
@@ -407,13 +434,14 @@ function createMainWindow(): BrowserWindow {
 		const isWorkChat = (url: string): boolean => {
 			const {hostname, pathname} = new URL(url);
 
-			if (hostname === 'work.facebook.com') {
+			if (hostname === 'work.facebook.com' || hostname === 'work.workplace.com') {
 				return true;
 			}
 
 			if (
-				// Example: https://company-name.facebook.com/login
-				hostname.endsWith('.facebook.com') &&
+				// Example: https://company-name.facebook.com/login or
+				//   		https://company-name.workplace.com/login
+				(hostname.endsWith('.facebook.com') || hostname.endsWith('.workplace.com')) &&
 				(pathname.startsWith('/login') || pathname.startsWith('/chat'))
 			) {
 				return true;
@@ -431,7 +459,7 @@ function createMainWindow(): BrowserWindow {
 		}
 
 		event.preventDefault();
-		shell.openExternal(url);
+		shell.openExternalSync(url);
 	});
 })();
 
@@ -459,7 +487,12 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
 	isQuitting = true;
-	config.set('lastWindowState', mainWindow.getNormalBounds());
+
+	// Checking whether the window exists to work around an Electron race issue:
+	// https://github.com/sindresorhus/caprine/issues/809
+	if (mainWindow) {
+		config.set('lastWindowState', mainWindow.getNormalBounds());
+	}
 });
 
 const notifications = new Map();
@@ -469,7 +502,7 @@ ipcMain.on(
 	(_event: ElectronEvent, {id, title, body, icon, silent}: NotificationEvent) => {
 		const notification = new Notification({
 			title,
-			body,
+			body: config.get('notificationMessagePreview') ? body : `You have a new message`,
 			hasReply: true,
 			icon: nativeImage.createFromDataURL(icon),
 			silent
@@ -478,7 +511,6 @@ ipcMain.on(
 		notifications.set(id, notification);
 
 		notification.on('click', () => {
-			mainWindow.show();
 			sendAction('notification-callback', {callbackName: 'onclick', id});
 
 			notifications.delete(id);
@@ -492,8 +524,7 @@ ipcMain.on(
 		});
 
 		notification.on('close', () => {
-			sendAction('notification-callback', {callbackName: 'onclose', id});
-
+			sendBackgroundAction('notification-callback', {callbackName: 'onclose', id});
 			notifications.delete(id);
 		});
 
