@@ -24,6 +24,7 @@ import electronLocalshortcut = require('electron-localshortcut');
 import electronDebug = require('electron-debug');
 import {is, darkMode} from 'electron-util';
 import {bestFacebookLocaleFor} from 'facebook-locales';
+import doNotDisturb = require('@sindresorhus/do-not-disturb');
 import updateAppMenu from './menu';
 import config from './config';
 import tray from './tray';
@@ -69,12 +70,14 @@ let mainWindow: BrowserWindow;
 let isQuitting = false;
 let prevMessageCount = 0;
 let dockMenu: Menu;
+let isDNDEnabled = false;
 
 if (!app.requestSingleInstanceLock()) {
 	app.quit();
 }
 
 app.on('second-instance', () => {
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 	if (mainWindow) {
 		if (mainWindow.isMinimized()) {
 			mainWindow.restore();
@@ -97,11 +100,16 @@ function updateBadge(conversations: Conversation[]): void {
 	const messageCount = getMessageCount(conversations);
 
 	if (is.macos || is.linux) {
-		if (config.get('showUnreadBadge')) {
+		if (config.get('showUnreadBadge') && !isDNDEnabled) {
 			app.setBadgeCount(messageCount);
 		}
 
-		if (is.macos && config.get('bounceDockOnMessage') && prevMessageCount !== messageCount) {
+		if (
+			is.macos &&
+			!isDNDEnabled &&
+			config.get('bounceDockOnMessage') &&
+			prevMessageCount !== messageCount
+		) {
 			app.dock.bounce('informational');
 			prevMessageCount = messageCount;
 		}
@@ -168,7 +176,7 @@ function enableHiresResources(): void {
 			let cookie = (details.requestHeaders as any).Cookie;
 
 			if (cookie && details.method === 'GET') {
-				if (/(; )?dpr=\d/.test(cookie)) {
+				if (/(?:; )?dpr=\d/.test(cookie)) {
 					cookie = cookie.replace(/dpr=\d/, `dpr=${scaleFactor}`);
 				} else {
 					cookie = `${cookie}; dpr=${scaleFactor}`;
@@ -201,11 +209,11 @@ function initRequestsFiltering(): void {
 		if (url.includes('emoji.php')) {
 			callback(await processEmojiUrl(url));
 		} else if (url.includes('typ.php')) {
-			callback({cancel: config.get('block.typingIndicator')});
+			callback({cancel: config.get('block.typingIndicator' as any)});
 		} else if (url.includes('change_read_status.php')) {
-			callback({cancel: config.get('block.chatSeen')});
+			callback({cancel: config.get('block.chatSeen' as any)});
 		} else if (url.includes('delivery_receipts') || url.includes('unread_threads')) {
-			callback({cancel: config.get('block.deliveryReceipt')});
+			callback({cancel: config.get('block.deliveryReceipt' as any)});
 		}
 	});
 }
@@ -283,10 +291,24 @@ function createMainWindow(): BrowserWindow {
 			return;
 		}
 
+		// Workaround for https://github.com/electron/electron/issues/20263
+		// Closing the app window when on full screen leaves a black screen
+		// Exit fullscreen before closing
+		if (is.macos) {
+			if (mainWindow.isFullScreen()) {
+				mainWindow.once('leave-full-screen', () => {
+					mainWindow.hide();
+				});
+				mainWindow.setFullScreen(false);
+			} else {
+				mainWindow.hide();
+			}
+		}
+
 		if (!isQuitting) {
 			e.preventDefault();
 
-			// Workaround for electron/electron#10023
+			// Workaround for https://github.com/electron/electron/issues/10023
 			win.blur();
 			win.hide();
 		}
@@ -297,6 +319,10 @@ function createMainWindow(): BrowserWindow {
 			// This is a security in the case where messageCount is not reset by page title update
 			win.flashFrame(false);
 		}
+	});
+
+	win.on('resize', () => {
+		config.set('lastWindowState', win.getNormalBounds());
 	});
 
 	return win;
@@ -391,6 +417,19 @@ function createMainWindow(): BrowserWindow {
 			mainWindow.show();
 		}
 
+		if (is.macos) {
+			ipcMain.on('update-dnd-mode', async (_event: ElectronEvent, initialSoundsValue) => {
+				doNotDisturb.on('change', (doNotDisturb: boolean) => {
+					isDNDEnabled = doNotDisturb;
+					webContents.send('toggle-sounds', isDNDEnabled ? false : initialSoundsValue);
+				});
+
+				isDNDEnabled = await doNotDisturb.isEnabled();
+
+				webContents.send('toggle-sounds', isDNDEnabled ? false : initialSoundsValue);
+			});
+		}
+
 		webContents.send('toggle-mute-notifications', config.get('notificationsMuted'));
 		webContents.send('toggle-message-buttons', config.get('showMessageButtons'));
 
@@ -465,6 +504,7 @@ function createMainWindow(): BrowserWindow {
 
 if (is.macos) {
 	ipcMain.on('set-vibrancy', () => {
+		mainWindow.setBackgroundColor('#00000000'); // Transparent, workaround for vibrancy issue.
 		mainWindow.setVibrancy('sidebar');
 
 		if (config.get('followSystemAppearance')) {
@@ -480,6 +520,7 @@ ipcMain.on('mute-notifications-toggled', (_event: ElectronEvent, status: boolean
 });
 
 app.on('activate', () => {
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 	if (mainWindow) {
 		mainWindow.show();
 	}
@@ -490,6 +531,7 @@ app.on('before-quit', () => {
 
 	// Checking whether the window exists to work around an Electron race issue:
 	// https://github.com/sindresorhus/caprine/issues/809
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 	if (mainWindow) {
 		config.set('lastWindowState', mainWindow.getNormalBounds());
 	}
@@ -502,7 +544,7 @@ ipcMain.on(
 	(_event: ElectronEvent, {id, title, body, icon, silent}: NotificationEvent) => {
 		const notification = new Notification({
 			title,
-			body: config.get('notificationMessagePreview') ? body : `You have a new message`,
+			body: config.get('notificationMessagePreview') ? body : 'You have a new message',
 			hasReply: true,
 			icon: nativeImage.createFromDataURL(icon),
 			silent

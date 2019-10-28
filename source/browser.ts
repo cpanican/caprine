@@ -1,6 +1,6 @@
 import {ipcRenderer as ipc, Event as ElectronEvent} from 'electron';
-import elementReady from 'element-ready';
 import {api, is} from 'electron-util';
+import elementReady = require('element-ready');
 
 import selectors from './browser/selectors';
 import config from './config';
@@ -10,6 +10,7 @@ import './browser/conversation-list'; // eslint-disable-line import/no-unassigne
 
 const selectedConversationSelector = '._5l-3._1ht1._1ht2';
 const preferencesSelector = '._10._4ebx.uiLayer._4-hy';
+const messengerSoundsSelector = `${preferencesSelector} ._374d ._6bkz`;
 
 async function withMenu(
 	menuButtonElement: HTMLElement,
@@ -43,14 +44,21 @@ async function withMenu(
 }
 
 async function withSettingsMenu(callback: () => Promise<void> | void): Promise<void> {
-	await withMenu(await elementReady<HTMLElement>('._30yy._6ymd._2agf,._30yy._2fug._p'), callback);
+	const settingsMenu = (await elementReady<HTMLElement>('._30yy._6ymd._2agf,._30yy._2fug._p', {
+		stopOnDomReady: false
+	}))!;
+
+	await withMenu(settingsMenu, callback);
 }
 
 function selectMenuItem(itemNumber: number): void {
 	const selector = document.querySelector<HTMLElement>(
 		`.uiLayer:not(.hidden_elem) ._54nq._2i-c._558b._2n_z li:nth-child(${itemNumber}) a`
-	)!;
-	selector.click();
+	);
+
+	if (selector) {
+		selector.click();
+	}
 }
 
 async function selectOtherListViews(itemNumber: number): Promise<void> {
@@ -79,7 +87,7 @@ ipc.on('show-preferences', async () => {
 });
 
 ipc.on('new-conversation', () => {
-	document.querySelector<HTMLElement>("._30yy[data-href$='/new']")!.click();
+	document.querySelector<HTMLElement>('._30yy[data-href$="/new"]')!.click();
 });
 
 ipc.on('log-out', async () => {
@@ -114,17 +122,45 @@ ipc.on('search', () => {
 });
 
 ipc.on('insert-gif', () => {
-	document.querySelector<HTMLElement>('._yht')!.click();
+	const gifElement =
+		// Old UI
+		document.querySelector<HTMLElement>('._yht') ||
+		// New UI
+		[...document.querySelectorAll<HTMLElement>('._7oam')].find(element =>
+			element.querySelector<HTMLElement>('svg path[d^="M27.002,13.5"]')
+		);
+
+	gifElement!.click();
 });
 
 ipc.on('insert-emoji', async () => {
-	const emojiElement = await elementReady<HTMLElement>('._5s2p');
+	const emojiElement = (await elementReady<HTMLElement>('._5s2p, ._30yy._7odb', {
+		stopOnDomReady: false
+	}))!;
 
 	emojiElement.click();
 });
 
-ipc.on('insert-text', () => {
-	document.querySelector<HTMLElement>('._5rpu')!.focus();
+ipc.on('insert-sticker', () => {
+	const stickerElement =
+		// Old UI
+		document.querySelector<HTMLElement>('._4rv6') ||
+		// New UI
+		[...document.querySelectorAll<HTMLElement>('._7oam')].find(element =>
+			element.querySelector<HTMLElement>('svg path[d^="M22.5,18.5 L27.998,18.5"]')
+		);
+
+	stickerElement!.click();
+});
+
+ipc.on('attach-files', () => {
+	document
+		.querySelector<HTMLElement>('._5vn8 + input[type="file"], ._7oam input[type="file"]')!
+		.click();
+});
+
+ipc.on('focus-text-input', () => {
+	document.querySelector<HTMLElement>('._7kpg ._5rpu')!.focus();
 });
 
 ipc.on('next-conversation', nextConversation);
@@ -139,11 +175,11 @@ ipc.on('delete-conversation', async () => {
 	await deleteSelectedConversation();
 });
 
-ipc.on('archive-conversation', async () => {
+ipc.on('hide-conversation', async () => {
 	const index = selectedConversationIndex();
 
 	if (index !== -1) {
-		await archiveSelectedConversation();
+		await hideSelectedConversation();
 
 		const key = index + 1;
 		await jumpToConversation(key);
@@ -152,13 +188,12 @@ ipc.on('archive-conversation', async () => {
 
 function setSidebarVisibility(): void {
 	document.documentElement.classList.toggle('sidebar-hidden', config.get('sidebarHidden'));
+
 	ipc.send('set-sidebar-visibility');
 }
 
-ipc.on('toggle-mute-notifications', async (_event: ElectronEvent, defaultStatus: boolean) => {
-	const preferencesAreOpen = isPreferencesOpen();
-
-	if (!preferencesAreOpen) {
+async function openHiddenPreferences(): Promise<boolean> {
+	if (!isPreferencesOpen()) {
 		const style = document.createElement('style');
 		// Hide both the backdrop and the preferences dialog
 		style.textContent = `${preferencesSelector} ._3ixn, ${preferencesSelector} ._59s7 { opacity: 0 !important }`;
@@ -168,10 +203,34 @@ ipc.on('toggle-mute-notifications', async (_event: ElectronEvent, defaultStatus:
 
 		// Will clean up itself after the preferences are closed
 		document.querySelector<HTMLElement>(preferencesSelector)!.append(style);
+
+		return true;
 	}
 
+	return false;
+}
+
+ipc.on(
+	'toggle-sounds',
+	async (_event: ElectronEvent, checked: boolean): Promise<void> => {
+		const shouldClosePreferences = await openHiddenPreferences();
+
+		const soundsCheckbox = document.querySelector<HTMLInputElement>(messengerSoundsSelector)!;
+		if (typeof checked === 'undefined' || checked !== soundsCheckbox.checked) {
+			soundsCheckbox.click();
+		}
+
+		if (shouldClosePreferences) {
+			closePreferences();
+		}
+	}
+);
+
+ipc.on('toggle-mute-notifications', async (_event: ElectronEvent, defaultStatus: boolean) => {
+	const shouldClosePreferences = await openHiddenPreferences();
+
 	const notificationCheckbox = document.querySelector<HTMLInputElement>(
-		'._374b:nth-of-type(4) ._4ng2 input'
+		selectors.notificationCheckbox
 	)!;
 
 	if (defaultStatus === undefined) {
@@ -185,12 +244,12 @@ ipc.on('toggle-mute-notifications', async (_event: ElectronEvent, defaultStatus:
 
 	ipc.send('mute-notifications-toggled', !notificationCheckbox.checked);
 
-	if (!preferencesAreOpen) {
+	if (shouldClosePreferences) {
 		closePreferences();
 	}
 });
 
-ipc.on('toggle-message-buttons', async () => {
+ipc.on('toggle-message-buttons', () => {
 	document.body.classList.toggle('show-message-buttons', config.get('showMessageButtons'));
 });
 
@@ -202,7 +261,7 @@ ipc.on('show-message-requests-view', async () => {
 	await selectOtherListViews(4);
 });
 
-ipc.on('show-archived-threads-view', async () => {
+ipc.on('show-hidden-threads-view', async () => {
 	await selectOtherListViews(5);
 });
 
@@ -224,6 +283,10 @@ function setDarkMode(): void {
 	updateVibrancy();
 }
 
+function setPrivateMode(): void {
+	document.documentElement.classList.toggle('private-mode', config.get('privateMode'));
+}
+
 function updateVibrancy(): void {
 	const {classList} = document.documentElement;
 
@@ -240,6 +303,17 @@ function updateVibrancy(): void {
 	}
 
 	ipc.send('set-vibrancy');
+}
+
+async function updateDoNotDisturb(): Promise<void> {
+	const shouldClosePreferences = await openHiddenPreferences();
+	const soundsCheckbox = document.querySelector<HTMLInputElement>(messengerSoundsSelector)!;
+
+	if (shouldClosePreferences) {
+		closePreferences();
+	}
+
+	ipc.send('update-dnd-mode', soundsCheckbox.checked);
 }
 
 function renderOverlayIcon(messageCount: number): HTMLCanvasElement {
@@ -268,6 +342,8 @@ ipc.on('toggle-sidebar', () => {
 
 ipc.on('set-dark-mode', setDarkMode);
 
+ipc.on('set-private-mode', setPrivateMode);
+
 ipc.on('update-vibrancy', () => {
 	updateVibrancy();
 });
@@ -291,8 +367,9 @@ ipc.on('render-native-emoji', (_event: ElectronEvent, emoji: string) => {
 		context.font = '256px system-ui';
 		context.fillText(emoji, 128, 154);
 	} else {
+		context.textBaseline = 'bottom';
 		context.font = '225px system-ui';
-		context.fillText(emoji, 128, 115);
+		context.fillText(emoji, 128, 256);
 	}
 
 	const dataUrl = canvas.toDataURL();
@@ -300,7 +377,7 @@ ipc.on('render-native-emoji', (_event: ElectronEvent, emoji: string) => {
 });
 
 ipc.on('zoom-reset', () => {
-	setZoom(1.0);
+	setZoom(1);
 });
 
 ipc.on('zoom-in', () => {
@@ -346,11 +423,22 @@ async function jumpToConversation(key: number): Promise<void> {
 
 // Focus on the conversation with the given index
 async function selectConversation(index: number): Promise<void> {
-	const conversationElement = (await elementReady(selectors.conversationList)).children[index];
+	const list = await elementReady<HTMLElement>(selectors.conversationList, {stopOnDomReady: false});
 
-	if (conversationElement) {
-		(conversationElement.firstChild!.firstChild as HTMLElement).click();
+	if (!list) {
+		console.error('Could not find conversations list', selectors.conversationList);
+		return;
 	}
+
+	const conversation = list.children[index];
+
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+	if (!conversation) {
+		console.error('Could not find conversation', index);
+		return;
+	}
+
+	(conversation.firstChild!.firstChild as HTMLElement).click();
 }
 
 function selectedConversationIndex(offset = 0): number {
@@ -388,7 +476,7 @@ async function openMuteModal(): Promise<void> {
 	});
 }
 
-async function archiveSelectedConversation(): Promise<void> {
+async function hideSelectedConversation(): Promise<void> {
 	const groupConversationProfilePicture = document.querySelector<HTMLElement>(
 		`${selectedConversationSelector} ._55lu`
 	);
@@ -415,7 +503,7 @@ async function openPreferences(): Promise<void> {
 		selectMenuItem(1);
 	});
 
-	await elementReady(preferencesSelector);
+	await elementReady<HTMLElement>(preferencesSelector, {stopOnDomReady: false});
 }
 
 function isPreferencesOpen(): boolean {
@@ -427,7 +515,7 @@ function closePreferences(): void {
 	doneButton.click();
 }
 
-async function insertionListener(event: AnimationEvent): Promise<void> {
+function insertionListener(event: AnimationEvent): void {
 	if (event.animationName === 'nodeInserted' && event.target) {
 		event.target.dispatchEvent(new Event('mouseover', {bubbles: true}));
 	}
@@ -437,13 +525,13 @@ async function insertionListener(event: AnimationEvent): Promise<void> {
 document.addEventListener('animationstart', insertionListener, false);
 
 // Inject a global style node to maintain custom appearance after conversation change or startup
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 	const style = document.createElement('style');
 	style.id = 'zoomFactor';
 	document.body.append(style);
 
 	// Set the zoom factor if it was set before quitting
-	const zoomFactor = config.get('zoomFactor') || 1;
+	const zoomFactor = config.get('zoomFactor');
 	setZoom(zoomFactor);
 
 	// Enable OS specific styles
@@ -455,9 +543,18 @@ document.addEventListener('DOMContentLoaded', () => {
 	// Activate Dark Mode if it was set before quitting
 	setDarkMode();
 
+	// Activate Private Mode if it was set before quitting
+	setPrivateMode();
+
+	// Configure do not disturb
+	if (is.macos) {
+		await updateDoNotDisturb();
+	}
+
 	// Prevent flash of white on startup when in dark mode
 	// TODO: find a CSS-only solution
 	if (!is.macos && config.get('darkMode')) {
+		// eslint-disable-next-line require-atomic-updates
 		document.documentElement.style.backgroundColor = '#1e1e1e';
 	}
 
@@ -480,9 +577,7 @@ window.addEventListener('blur', () => {
 	document.documentElement.classList.add('is-window-inactive');
 });
 window.addEventListener('focus', () => {
-	if (document.documentElement) {
-		document.documentElement.classList.remove('is-window-inactive');
-	}
+	document.documentElement.classList.remove('is-window-inactive');
 });
 
 // It's not possible to add multiple accelerators
@@ -552,10 +647,19 @@ async function sendReply(message: string): Promise<void> {
 	const inputField = document.querySelector<HTMLElement>('[contenteditable="true"]');
 	if (inputField) {
 		const previousMessage = inputField.textContent;
+
 		// Send message
 		inputField.focus();
 		insertMessageText(message, inputField);
-		(await elementReady<HTMLElement>('._30yy._38lh')).click();
+
+		const sendButton = await elementReady<HTMLElement>('._30yy._38lh', {stopOnDomReady: false});
+
+		if (!sendButton) {
+			console.error('Could not find send button');
+			return;
+		}
+
+		sendButton.click();
 
 		// Restore (possible) previous message
 		if (previousMessage) {

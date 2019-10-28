@@ -1,7 +1,7 @@
 {
 	"name": "caprine",
 	"productName": "Messenger",
-	"version": "2.34.0",
+	"version": "2.40.0",
 	"description": "Elegant Facebook Messenger desktop app",
 	"license": "MIT",
 	"repository": "sindresorhus/caprine",
@@ -12,7 +12,7 @@
 	},
 	"main": "dist-js",
 	"engines": {
-		"node": ">=10"
+		"node": ">=12"
 	},
 	"scripts": {
 		"postinstall": "electron-builder install-app-deps",
@@ -25,37 +25,38 @@
 		"publish-snap": "del dist && tsc && electron-builder --linux && snapcraft push --release=stable dist/*.snap"
 	},
 	"dependencies": {
-		"electron-context-menu": "^0.13.0",
+		"@sindresorhus/do-not-disturb": "^1.1.0",
+		"electron-context-menu": "^0.15.0",
 		"electron-debug": "^3.0.1",
 		"electron-dl": "^1.14.0",
 		"electron-localshortcut": "^3.1.0",
-		"electron-log": "^3.0.6",
-		"electron-store": "3.0.0",
+		"electron-log": "^3.0.8",
+		"electron-store": "^5.0.0",
 		"electron-updater": "^4.0.14",
-		"electron-util": "^0.11.0",
-		"element-ready": "^3.1.0",
-		"facebook-locales": "^1.0.673",
+		"electron-util": "^0.12.1",
+		"element-ready": "^4.1.1",
+		"facebook-locales": "^1.0.740",
 		"is-online": "^8.2.0",
-		"lodash": "^4.17.14",
+		"json-schema-typed": "^7.0.1",
+		"lodash": "^4.17.15",
 		"p-wait-for": "^3.1.0"
 	},
 	"devDependencies": {
 		"@sindresorhus/tsconfig": "^0.4.0",
-		"@types/electron-store": "^1.3.1",
 		"@types/facebook-locales": "^1.0.0",
-		"@types/lodash": "^4.14.136",
-		"@typescript-eslint/eslint-plugin": "^1.12.0",
-		"@typescript-eslint/parser": "^1.12.0",
-		"del-cli": "^2.0.0",
-		"electron": "^5.0.6",
-		"electron-builder": "^20.44.4",
-		"eslint-config-xo-typescript": "^0.15.0",
-		"husky": "^3.0.0",
+		"@types/lodash": "^4.14.142",
+		"@typescript-eslint/eslint-plugin": "^2.3.3",
+		"@typescript-eslint/parser": "^2.3.3",
+		"del-cli": "^3.0.0",
+		"electron": "^6.0.11",
+		"electron-builder": "^21.2.0",
+		"eslint-config-xo-typescript": "^0.19.0",
+		"husky": "^3.0.8",
 		"np": "^5.0.2",
-		"stylelint": "^10.0.1",
+		"stylelint": "^11.0.0",
 		"stylelint-config-xo": "^0.15.0",
-		"typescript": "^3.5.3",
-		"xo": "^0.24.0"
+		"typescript": "^3.6.3",
+		"xo": "^0.25.3"
 	},
 	"xo": {
 		"extends": "xo-typescript",
@@ -71,7 +72,10 @@
 			"import/first": "off",
 			"import/newline-after-import": "off",
 			"@typescript-eslint/no-object-literal-type-assertion": "off",
-			"@typescript-eslint/indent": "off"
+			"@typescript-eslint/indent": "off",
+			"@typescript-eslint/no-explicit-any": "off",
+			"@typescript-eslint/no-misused-promises": "off",
+			"@typescript-eslint/strict-boolean-expressions": "off"
 		},
 		"prettier": true
 	},
@@ -141,7 +145,8 @@
 				"default",
 				"camera",
 				"removable-media"
-			]
+			],
+			"publish": "github"
 		},
 		"win": {
 			"verifyUpdateCodeSignature": false

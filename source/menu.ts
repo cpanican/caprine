@@ -1,6 +1,6 @@
 import * as path from 'path';
 import {existsSync, writeFileSync} from 'fs';
-import {app, shell, Menu, MenuItemConstructorOptions, BrowserWindow} from 'electron';
+import {app, shell, Menu, MenuItemConstructorOptions, BrowserWindow, dialog} from 'electron';
 import {
 	is,
 	appMenu,
@@ -89,25 +89,25 @@ export default async function updateMenu(): Promise<Menu> {
 		{
 			label: 'Block Seen Indicator',
 			type: 'checkbox',
-			checked: config.get('block.chatSeen'),
+			checked: config.get('block.chatSeen' as any),
 			click(menuItem) {
-				config.set('block.chatSeen', menuItem.checked);
+				config.set('block.chatSeen' as any, menuItem.checked);
 			}
 		},
 		{
 			label: 'Block Typing Indicator',
 			type: 'checkbox',
-			checked: config.get('block.typingIndicator'),
+			checked: config.get('block.typingIndicator' as any),
 			click(menuItem) {
-				config.set('block.typingIndicator', menuItem.checked);
+				config.set('block.typingIndicator' as any, menuItem.checked);
 			}
 		},
 		{
 			label: 'Block Delivery Receipts',
 			type: 'checkbox',
-			checked: config.get('block.deliveryReceipt'),
+			checked: config.get('block.deliveryReceipt' as any),
 			click(menuItem) {
-				config.set('block.deliveryReceipt', menuItem.checked);
+				config.set('block.deliveryReceipt' as any, menuItem.checked);
 			}
 		}
 	];
@@ -275,6 +275,14 @@ Press Command/Ctrl+R in Messenger to see your changes.
 				config.set('autoHideMenuBar', menuItem.checked);
 				focusedWindow.setAutoHideMenuBar(menuItem.checked);
 				focusedWindow.setMenuBarVisibility(!menuItem.checked);
+
+				if (menuItem.checked) {
+					dialog.showMessageBox({
+						type: 'info',
+						message: 'Press the Alt key to toggle the menu bar.',
+						buttons: ['OK']
+					});
+				}
 			}
 		},
 		{
@@ -380,6 +388,20 @@ Press Command/Ctrl+R in Messenger to see your changes.
 			type: 'separator'
 		},
 		{
+			label: 'Hide Names and Avatars',
+			id: 'privateMode',
+			type: 'checkbox',
+			checked: config.get('privateMode'),
+			accelerator: 'CommandOrControl+Shift+N',
+			click() {
+				config.set('privateMode', !config.get('privateMode'));
+				sendAction('set-private-mode');
+			}
+		},
+		{
+			type: 'separator'
+		},
+		{
 			label: 'Show Sidebar',
 			type: 'checkbox',
 			checked: !config.get('sidebarHidden'),
@@ -413,9 +435,9 @@ Press Command/Ctrl+R in Messenger to see your changes.
 			}
 		},
 		{
-			label: 'Show Archived Threads',
+			label: 'Show Hidden Threads',
 			click() {
-				sendAction('show-archived-threads-view');
+				sendAction('show-hidden-threads-view');
 			}
 		},
 		{
@@ -435,10 +457,10 @@ Press Command/Ctrl+R in Messenger to see your changes.
 			}
 		},
 		{
-			label: 'Archive Conversation',
-			accelerator: 'CommandOrControl+Shift+A',
+			label: 'Hide Conversation',
+			accelerator: 'CommandOrControl+Shift+H',
 			click() {
-				sendAction('archive-conversation');
+				sendAction('hide-conversation');
 			}
 		},
 		{
@@ -493,6 +515,13 @@ Press Command/Ctrl+R in Messenger to see your changes.
 			}
 		},
 		{
+			label: 'Insert Sticker',
+			accelerator: 'CommandOrControl+S',
+			click() {
+				sendAction('insert-sticker');
+			}
+		},
+		{
 			label: 'Insert Emoji',
 			accelerator: 'CommandOrControl+E',
 			click() {
@@ -500,10 +529,17 @@ Press Command/Ctrl+R in Messenger to see your changes.
 			}
 		},
 		{
-			label: 'Insert Text',
+			label: 'Attach Files',
+			accelerator: 'CommandOrControl+Shift+A',
+			click() {
+				sendAction('attach-files');
+			}
+		},
+		{
+			label: 'Focus Text Input',
 			accelerator: 'CommandOrControl+I',
 			click() {
-				sendAction('insert-text');
+				sendAction('focus-text-input');
 			}
 		}
 	];

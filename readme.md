@@ -31,6 +31,7 @@ Caprine is an unofficial and privacy-focused Facebook Messenger app with many us
 - Silent auto-updates
 - Custom text size
 - Emoji style setting
+- Respects Do Not Disturb\*
 
 \*macOS only
 
@@ -70,6 +71,10 @@ Also available as a [snap](https://snapcraft.io/caprine).
 You can toggle dark mode in the `View` menu or with <kbd>Command</kbd> <kbd>d</kbd> / <kbd>Control</kbd> <kbd>d</kbd>.
 
 <img src="media/screenshot-dark.png" width="846">
+
+### Hide Names and Avatars
+
+You can prevent others from looking at who you're chatting with by enabling the “Hide Names and Avatars” feature in the “View” menu or with <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>n</kbd>.
 
 ### Vibrancy
 
@@ -121,10 +126,6 @@ Desktop notifications can be turned on in `Preferences`.
 
 You can toggle whether Caprine stays on top of other windows in the `Window`/`View` menu or with <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>t</kbd>.
 
-### Image paste confirmation
-
-Confirmation before sending images from the clipboard, to prevent accidental copy-pastes.
-
 ### Work Chat support
 
 Support for Work Chat: Messenger for [Workplace](https://www.facebook.com/workplace). You can switch to it in the `Caprine`/`File` menu.
@@ -172,18 +173,21 @@ Description            | Keys
 New conversation       | <kbd>Command/Control</kbd> <kbd>n</kbd>
 Search conversations   | <kbd>Command/Control</kbd> <kbd>k</kbd>
 Toggle "Dark mode"     | <kbd>Command/Control</kbd> <kbd>d</kbd>
+Hide Names and Avatars | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>n</kbd>
 Next conversation      | <kbd>Command/Control</kbd> <kbd>]</kbd> or <kbd>Control</kbd> <kbd>Tab</kbd>
 Previous conversation  | <kbd>Command/Control</kbd> <kbd>[</kbd> or <kbd>Control</kbd> <kbd>Shift</kbd> <kbd>Tab</kbd>
 Jump to conversation   | <kbd>Command/Control</kbd> <kbd>1</kbd>…<kbd>9</kbd>
 Insert GIF             | <kbd>Command/Control</kbd> <kbd>g</kbd>
+Insert sticker         | <kbd>Command/Control</kbd> <kbd>s</kbd>
 Insert emoji           | <kbd>Command/Control</kbd> <kbd>e</kbd>
-Insert text            | <kbd>Command/Control</kbd> <kbd>i</kbd>
+Attach files           | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>a</kbd>
+Focus text input       | <kbd>Command/Control</kbd> <kbd>i</kbd>
 Search in conversation | <kbd>Command/Control</kbd> <kbd>f</kbd>
 Mute conversation      | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>m</kbd>
-Archive conversation   | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>a</kbd>
+Hide conversation      | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>h</kbd>
 Delete conversation    | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>d</kbd>
 Toggle "Always on Top" | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>t</kbd>
-Toggle window menu     | <kbd>Alt</kbd> *(Windows only)*
+Toggle window menu     | <kbd>Alt</kbd> *(Windows/Linux only)*
 Toggle main window     | <kbd>Command</kbd> <kbd>Shift</kbd> <kbd>y</kbd> *(macOS only)*
 Toggle sidebar         | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>s</kbd>
 Switch to Messenger    | <kbd>Command/Control</kbd> <kbd>Shift</kbd> <kbd>1</kbd>

@@ -1,53 +1,192 @@
 import Store = require('electron-store');
 import {is} from 'electron-util';
-import {EmojiStyle} from './emoji';
 
-const defaults = {
-	followSystemAppearance: true,
-	darkMode: false,
-
-	// TODO: Change the default to 'sidebar' when the vibrancy issue in Electron is fixed.
-	// See https://github.com/electron/electron/issues/10420
-	vibrancy: 'none' as 'none' | 'sidebar' | 'full',
-
-	zoomFactor: 1,
+type StoreType = {
+	followSystemAppearance: boolean;
+	darkMode: boolean;
+	privateMode: boolean;
+	vibrancy: 'none' | 'sidebar' | 'full';
+	zoomFactor: number;
 	lastWindowState: {
-		width: 800,
-		height: 600,
-		x: undefined as number | undefined,
-		y: undefined as number | undefined
-	},
-	menuBarMode: false,
-	showDockIcon: true,
-	showTrayIcon: true,
-	alwaysOnTop: false,
-	bounceDockOnMessage: true,
-	showUnreadBadge: true,
-	showMessageButtons: true,
-	launchMinimized: false,
-	flashWindowOnMessage: true,
-	notificationMessagePreview: true,
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	};
+	menuBarMode: boolean;
+	showDockIcon: boolean;
+	showTrayIcon: boolean;
+	alwaysOnTop?: boolean;
+	bounceDockOnMessage: boolean;
+	showUnreadBadge: boolean;
+	showMessageButtons: boolean;
+	launchMinimized: boolean;
+	flashWindowOnMessage: boolean;
+	notificationMessagePreview: boolean;
 	block: {
-		chatSeen: false,
-		typingIndicator: false,
-		deliveryReceipt: false
+		chatSeen: boolean;
+		typingIndicator: boolean;
+		deliveryReceipt: boolean;
+	};
+	emojiStyle: 'native' | 'facebook-3-0' | 'messenger-1-0' | 'facebook-2-2';
+	useWorkChat: boolean;
+	sidebarHidden: boolean;
+	autoHideMenuBar: boolean;
+	notificationsMuted: boolean;
+	hardwareAcceleration: boolean;
+	quitOnWindowClose: boolean;
+	keepMeSignedIn: boolean;
+	autoplayVideos: boolean;
+};
+
+const schema: {[Key in keyof StoreType]: Store.Schema} = {
+	followSystemAppearance: {
+		type: 'boolean',
+		default: true
 	},
-	emojiStyle: 'messenger-1-0' as EmojiStyle,
-	confirmImagePaste: true,
-	useWorkChat: false,
-	sidebarHidden: false,
-	autoHideMenuBar: false,
-	notificationsMuted: false,
-	hardwareAcceleration: false,
-	quitOnWindowClose: false,
-	keepMeSignedIn: true,
-	autoplayVideos: true
+	darkMode: {
+		type: 'boolean',
+		default: false
+	},
+	privateMode: {
+		type: 'boolean',
+		default: false
+	},
+	vibrancy: {
+		type: 'string',
+		enum: ['none', 'sidebar', 'full'],
+		// TODO: Change the default to 'sidebar' when the vibrancy issue in Electron is fixed.
+		// See https://github.com/electron/electron/issues/10420
+		default: 'none'
+	},
+	zoomFactor: {
+		type: 'number',
+		default: 1
+	},
+	lastWindowState: {
+		type: 'object',
+		properties: {
+			x: {
+				type: 'number'
+			},
+			y: {
+				type: 'number'
+			},
+			width: {
+				type: 'number'
+			},
+			height: {
+				type: 'number'
+			}
+		},
+		default: {
+			x: undefined,
+			y: undefined,
+			width: 800,
+			height: 600
+		}
+	},
+	menuBarMode: {
+		type: 'boolean',
+		default: false
+	},
+	showDockIcon: {
+		type: 'boolean',
+		default: true
+	},
+	showTrayIcon: {
+		type: 'boolean',
+		default: true
+	},
+	alwaysOnTop: {
+		type: 'boolean'
+	},
+	bounceDockOnMessage: {
+		type: 'boolean',
+		default: false
+	},
+	showUnreadBadge: {
+		type: 'boolean',
+		default: true
+	},
+	showMessageButtons: {
+		type: 'boolean',
+		default: true
+	},
+	launchMinimized: {
+		type: 'boolean',
+		default: false
+	},
+	flashWindowOnMessage: {
+		type: 'boolean',
+		default: true
+	},
+	notificationMessagePreview: {
+		type: 'boolean',
+		default: true
+	},
+	block: {
+		type: 'object',
+		properties: {
+			chatSeen: {
+				type: 'boolean'
+			},
+			typingIndicator: {
+				type: 'boolean'
+			},
+			deliveryReceipt: {
+				type: 'boolean'
+			}
+		},
+		default: {
+			chatSeen: false,
+			typingIndicator: false,
+			deliveryReceipt: false
+		}
+	},
+	emojiStyle: {
+		type: 'string',
+		enum: ['native', 'facebook-3-0', 'messenger-1-0', 'facebook-2-2'],
+		default: 'facebook-3-0'
+	},
+	useWorkChat: {
+		type: 'boolean',
+		default: false
+	},
+	sidebarHidden: {
+		type: 'boolean',
+		default: false
+	},
+	autoHideMenuBar: {
+		type: 'boolean',
+		default: false
+	},
+	notificationsMuted: {
+		type: 'boolean',
+		default: false
+	},
+	hardwareAcceleration: {
+		type: 'boolean',
+		default: true
+	},
+	quitOnWindowClose: {
+		type: 'boolean',
+		default: false
+	},
+	keepMeSignedIn: {
+		type: 'boolean',
+		default: true
+	},
+	autoplayVideos: {
+		type: 'boolean',
+		default: true
+	}
 };
 
 function updateVibrancySetting(store: Store): void {
 	const vibrancy = store.get('vibrancy');
 
-	if (!is.macos) {
+	if (!is.macos || !vibrancy) {
 		store.set('vibrancy', 'none');
 	} else if (vibrancy === true) {
 		store.set('vibrancy', 'full');
@@ -60,7 +199,7 @@ function migrate(store: Store): void {
 	updateVibrancySetting(store);
 }
 
-const store = new Store({defaults});
+const store = new Store<StoreType>({schema});
 migrate(store);
 
 export default store;

@@ -1,5 +1,5 @@
 import {ipcRenderer as ipc} from 'electron';
-import elementReady from 'element-ready';
+import elementReady = require('element-ready');
 
 import selectors from './selectors';
 
@@ -82,12 +82,14 @@ async function discoverIcons(el: HTMLElement): Promise<void> {
 		return createIcons(el, profilePicElement.src);
 	}
 
-	const groupPicElement = el.firstElementChild as HTMLElement;
+	const groupPicElement = el.firstElementChild as (HTMLElement | null);
 
 	if (groupPicElement) {
 		const groupPicBackground = groupPicElement.style.backgroundImage;
 
 		if (groupPicBackground) {
+			// TODO: Fix this lint violation.
+			// eslint-disable-next-line prefer-named-capture-group
 			return createIcons(el, groupPicBackground.replace(/^url\(["']?(.*?)["']?\)$/, '$1'));
 		}
 	}
@@ -129,7 +131,15 @@ async function createConversation(el: HTMLElement): Promise<Conversation> {
 }
 
 async function createConversationList(): Promise<Conversation[]> {
-	const list: HTMLElement = await elementReady(selectors.conversationList);
+	const list = await elementReady<HTMLElement>(selectors.conversationList, {
+		stopOnDomReady: false
+	});
+
+	if (!list) {
+		console.error('Could not find conversation list', selectors.conversationList);
+		return [];
+	}
+
 	const items: HTMLElement[] = [...list.children] as HTMLElement[];
 
 	const conversations: Conversation[] = await Promise.all(

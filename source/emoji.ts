@@ -286,6 +286,7 @@ async function getEmojiIcon(style: EmojiStyle): Promise<NativeImage | undefined>
 	}
 
 	if (style === 'native') {
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		if (!getWindow()) {
 			return undefined;
 		}
@@ -315,12 +316,13 @@ with this: https://static.xx.fbcdn.net/images/emoji.php/v9/z27/2/32/1f600.png
                                                  (see here) ^
 */
 export async function process(url: string): Promise<Response> {
-	const emojiStyle = config.get('emojiStyle');
+	// TODO: Remove the `any` here.
+	const emojiStyle = config.get('emojiStyle') as any;
 	const emojiSetCode = codeForEmojiStyle(emojiStyle);
 
 	// The character code is the filename without the extension.
 	const characterCodeEnd = url.lastIndexOf('.png');
-	const characterCode = url.substring(url.lastIndexOf('/') + 1, characterCodeEnd);
+	const characterCode = url.slice(url.lastIndexOf('/') + 1, characterCodeEnd);
 
 	if (emojiStyle === EmojiStyle.Native) {
 		const emoji = urlToEmoji(url);
